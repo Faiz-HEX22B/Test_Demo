@@ -43,15 +43,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-// LED Òì²½ÉÁË¸¿ØÖÆ½á¹¹Ìå
+// LED ï¿½ì²½ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½Æ½á¹¹ï¿½ï¿½
 typedef struct {
-  GPIO_TypeDef *port;   // GPIO ¶Ë¿Ú
-  uint16_t pin;         // GPIO Òý½Å
-  uint32_t period_ms;   // ÉÁË¸ÖÜÆÚ (ms)
-  uint32_t last_toggle; // ÉÏ´Î·­×ªÊ±µÄÏµÍ³Ê±¼ä´Á
+  GPIO_TypeDef *port;   // GPIO ï¿½Ë¿ï¿½
+  uint16_t pin;         // GPIO ï¿½ï¿½ï¿½ï¿½
+  uint32_t period_ms;   // ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½ (ms)
+  uint32_t last_toggle; // ï¿½Ï´Î·ï¿½×ªÊ±ï¿½ï¿½ÏµÍ³Ê±ï¿½ï¿½ï¿½
 } LED_Blink_t;
 
-// ºìÉ« LED (PC5): 500ms ÖÜÆÚ; À¶É« LED (PB2): 1000ms ÖÜÆÚ
+// ï¿½ï¿½É« LED (PC5): 500ms ï¿½ï¿½ï¿½ï¿½; ï¿½ï¿½É« LED (PB2): 1000ms ï¿½ï¿½ï¿½ï¿½
 static LED_Blink_t led_red = {LED_R_GPIO_Port, LED_R_Pin, 500, 0};
 static LED_Blink_t led_blue = {LED_B_GPIO_Port, LED_B_Pin, 1000, 0};
 /* USER CODE END PV */
@@ -68,10 +68,11 @@ static void LED_AsyncBlink(LED_Blink_t *led);
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
-int main(void) {
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
 
   /* USER CODE BEGIN 1 */
 
@@ -79,8 +80,7 @@ int main(void) {
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
-   */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -113,21 +113,22 @@ int main(void) {
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
-void SystemClock_Config(void) {
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
-   */
+  */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
+  * in the RCC_OscInitTypeDef structure.
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -136,30 +137,32 @@ void SystemClock_Config(void) {
   RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
     Error_Handler();
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
-                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  {
     Error_Handler();
   }
 }
 
 /* USER CODE BEGIN 4 */
 /**
- * @brief  ·Ç×èÈûÊ½ LED ÉÁË¸´¦Àí
- *         ÐèÔÚ while(1) ÖÐ³ÖÐøµ÷ÓÃ£¬ÄÚ²¿Í¨¹ý HAL_GetTick()
- * Ê±¼ä²îÅÐ¶ÏÊÇ·ñµ½´ï·­×ªÊ±»ú
- * @param  led: Ö¸Ïò LED_Blink_t ½á¹¹ÌåµÄÖ¸Õë
+ * @brief  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ LED ï¿½ï¿½Ë¸ï¿½ï¿½ï¿½ï¿½
+ *         ï¿½ï¿½ï¿½ï¿½ while(1) ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã£ï¿½ï¿½Ú²ï¿½Í¨ï¿½ï¿½ HAL_GetTick()
+ * Ê±ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½Ç·ñµ½´ï·­×ªÊ±ï¿½ï¿½
+ * @param  led: Ö¸ï¿½ï¿½ LED_Blink_t ï¿½á¹¹ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
  * @retval None
  */
 static void LED_AsyncBlink(LED_Blink_t *led) {
@@ -172,10 +175,11 @@ static void LED_AsyncBlink(LED_Blink_t *led) {
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void) {
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
@@ -185,13 +189,14 @@ void Error_Handler(void) {
 }
 #ifdef USE_FULL_ASSERT
 /**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
-void assert_failed(uint8_t *file, uint32_t line) {
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line
      number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
