@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "SEGGER_RTT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +43,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// 定义一个足够大的缓冲区，用于存放即将发送的数据
+uint8_t jscope_buffer[2048];
+
 // LED 异步闪烁控制结构体
 typedef struct {
   GPIO_TypeDef *port;   // GPIO 端口
@@ -54,6 +57,9 @@ typedef struct {
 // 红色 LED (PC5): 500ms 周期; 蓝色 LED (PB2): 1000ms 周期
 static LED_Blink_t led_red = {LED_R_GPIO_Port, LED_R_Pin, 500, 0};
 static LED_Blink_t led_blue = {LED_B_GPIO_Port, LED_B_Pin, 1000, 0};
+
+uint16_t jscope_cnt1 = 0;
+uint16_t jscope_cnt2 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,17 +103,40 @@ int main(void) {
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-
+  SEGGER_RTT_Init();
+  // 配置上行通道1，名称匹配数据格式
+  // "JScope_u2u2" 表示：两个连续的 16位无符号整数 (u2u2)
+  SEGGER_RTT_ConfigUpBuffer(1, "JScope_u2", jscope_buffer,
+                            sizeof(jscope_buffer),
+                            SEGGER_RTT_MODE_NO_BLOCK_SKIP);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
     /* USER CODE END WHILE */
-
+    // jscope_cnt1++;
+    // jscope_cnt2 += 2;
+    // SEGGER_RTT_Write(1, &jscope_cnt1, sizeof(jscope_cnt1));
+    // SEGGER_RTT_Write(1, &jscope_cnt2, sizeof(jscope_cnt2));
     /* USER CODE BEGIN 3 */
-    LED_AsyncBlink(&led_red);
-    LED_AsyncBlink(&led_blue);
+    uint32_t now = HAL_GetTick();
+
+    if (now - led_red.last_toggle >= led_red.period_ms) {
+      HAL_GPIO_TogglePin(led_red.port, led_red.pin);
+      led_red.last_toggle = now;
+      jscope_cnt1++;
+      SEGGER_RTT_Write(1, &jscope_cnt1, sizeof(jscope_cnt1));
+      SEGGER_RTT_printf(
+          0, "LED Red Toggled!\r\n"); // SEGGER_RTT_Write(1, &jscope_red_cnt,
+                                      // sizeof(jscope_red_cnt));
+    }
+
+    if (now - led_blue.last_toggle >= led_blue.period_ms) {
+      HAL_GPIO_TogglePin(led_blue.port, led_blue.pin);
+      led_blue.last_toggle = now;
+      SEGGER_RTT_printf(0, "LED Blue Toggled!\r\n");
+    }
   }
   /* USER CODE END 3 */
 }
