@@ -22,17 +22,26 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "SEGGER_RTT.h"
+#include "SEGGER_RTT.h" // SEGGER RTT å®žæ—¶ä¼ è¾“åº“
+#include "arm_math.h"   // CMSIS DSP æ•°å­¦åº“ï¼ˆä¸‰è§’å‡½æ•°ç­‰ï¼‰
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+// RTT æ•°æ®ä¼ è¾“ç»“æž„ä½“ï¼š4ä¸ªfloaté€šé“ç”¨äºŽJScopeæ³¢å½¢æ˜¾ç¤º
+typedef struct
+{
+    float rtt_ch1; // é€šé“1ï¼šè§’åº¦å€¼ï¼ˆåº¦ï¼‰
+    float rtt_ch2; // é€šé“2ï¼šå¼§åº¦å€¼
+    float rtt_ch3; // é€šé“3ï¼šsinå€¼
+    float rtt_ch4; // é€šé“4ï¼šcoså€¼
+} RTT_Update_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define JSCOPE_CH 1           // JScope ä½¿ç”¨çš„ RTT é€šé“å·
+#define DEG_TO_RAD 0.0174533f // è§’åº¦è½¬å¼§åº¦ç³»æ•° (Ï€/180)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,33 +52,62 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-// ¶¨ÒåÒ»¸ö×ã¹»´óµÄ»º³åÇø£¬ÓÃÓÚ´æ·Å¼´½«·¢ËÍµÄÊý¾Ý
-uint8_t jscope_buffer[2048];
+RTT_Update_t rtt_update; // RTT æ•°æ®ç¼“å†²åŒº
 
-// LED Òì²½ÉÁË¸¿ØÖÆ½á¹¹Ìå
-typedef struct {
-  GPIO_TypeDef *port;   // GPIO ¶Ë¿Ú
-  uint16_t pin;         // GPIO Òý½Å
-  uint32_t period_ms;   // ÉÁË¸ÖÜÆÚ (ms)
-  uint32_t last_toggle; // ÉÏ´Î·­×ªÊ±µÄÏµÍ³Ê±¼ä´Á
+static float angle = 0.0f;     // å½“å‰è§’åº¦å€¼ï¼ˆåº¦ï¼‰ï¼ŒèŒƒå›´ 0~360
+static float angle_rad = 0.0f; // å½“å‰è§’åº¦å€¼ï¼ˆå¼§åº¦ï¼‰ï¼ŒèŒƒå›´ 0~2Ï€
+
+static uint8_t jscope_buffer[2048]; // JScope RTT çŽ¯å½¢ç¼“å†²åŒº
+
+// LED å¼‚æ­¥é—ªçƒæŽ§åˆ¶ç»“æž„ä½“
+typedef struct
+{
+    GPIO_TypeDef *port;   // GPIO ç«¯å£
+    uint16_t pin;         // GPIO å¼•è„š
+    uint32_t period_ms;   // é—ªçƒå‘¨æœŸ (ms)
+    uint32_t last_toggle; // ä¸Šæ¬¡ç¿»è½¬æ—¶çš„ç³»ç»Ÿ tick
 } LED_Blink_t;
 
-// ºìÉ« LED (PC5): 500ms ÖÜÆÚ; À¶É« LED (PB2): 1000ms ÖÜÆÚ
+// çº¢è‰² LED (PC5): 500ms é—ªçƒ; è“è‰² LED (PB2): 1000ms é—ªçƒ
 static LED_Blink_t led_red = {LED_R_GPIO_Port, LED_R_Pin, 500, 0};
 static LED_Blink_t led_blue = {LED_B_GPIO_Port, LED_B_Pin, 1000, 0};
 
-uint16_t jscope_cnt1 = 0;
-uint16_t jscope_cnt2 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-static void LED_AsyncBlink(LED_Blink_t *led);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/**
+ * @brief  SysTick å›žè°ƒå‡½æ•° (æ¯ 1ms æ‰§è¡Œä¸€æ¬¡)
+ *         åŠŸèƒ½ï¼šè®¡ç®—ä¸‰è§’å‡½æ•°å¹¶é€šè¿‡ RTT å‘é€æ•°æ®åˆ° JScope
+ * @retval None
+ */
+void HAL_SYSTICK_Callback(void)
+{
+    // è§’åº¦è½¬å¼§åº¦
+    angle_rad = angle * DEG_TO_RAD;
+
+    // å¡«å…… RTT æ•°æ®
+    rtt_update.rtt_ch1 = angle;                  // åŽŸå§‹è§’åº¦ï¼ˆåº¦ï¼‰
+    rtt_update.rtt_ch2 = angle_rad;              // å¼§åº¦å€¼
+    rtt_update.rtt_ch3 = arm_sin_f32(angle_rad); // sin å€¼ï¼ˆCMSIS DSP åº“ï¼‰
+    rtt_update.rtt_ch4 = arm_cos_f32(angle_rad); // cos å€¼ï¼ˆCMSIS DSP åº“ï¼‰
+
+    // é€šè¿‡ RTT å‘é€æ•°æ®åˆ° JScope
+    SEGGER_RTT_Write(JSCOPE_CH, &rtt_update, sizeof(rtt_update));
+
+    // è§’åº¦é€’å¢ž 0.01 åº¦ï¼Œåˆ°è¾¾ 360 åº¦åŽå½’é›¶
+    angle += 0.01f;
+    if (angle >= 360.0f)
+    {
+        angle = 0.0f;
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -77,140 +115,119 @@ static void LED_AsyncBlink(LED_Blink_t *led);
  * @brief  The application entry point.
  * @retval int
  */
-int main(void) {
+int main(void)
+{
 
-  /* USER CODE BEGIN 1 */
+    /* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
+    /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+    /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
-   */
-  HAL_Init();
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
 
-  /* USER CODE BEGIN Init */
+    /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+    /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    /* Configure the system clock */
+    SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+    /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+    /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  /* USER CODE BEGIN 2 */
-  SEGGER_RTT_Init();
-  // ÅäÖÃÉÏÐÐÍ¨µÀ1£¬Ãû³ÆÆ¥ÅäÊý¾Ý¸ñÊ½
-  // "JScope_u2u2" ±íÊ¾£ºÁ½¸öÁ¬ÐøµÄ 16Î»ÎÞ·ûºÅÕûÊý (u2u2)
-  SEGGER_RTT_ConfigUpBuffer(1, "JScope_u2", jscope_buffer,
-                            sizeof(jscope_buffer),
-                            SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-  /* USER CODE END 2 */
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    /* USER CODE BEGIN 2 */
+    // åˆå§‹åŒ– SEGGER RTT
+    SEGGER_RTT_Init();
+    // é…ç½® RTT ä¸Šè¡Œç¼“å†²åŒºï¼Œæ ¼å¼ "JScope_f4f4f4f4" è¡¨ç¤º 4 ä¸ª float é€šé“
+    SEGGER_RTT_ConfigUpBuffer(JSCOPE_CH, "JScope_f4f4f4f4", jscope_buffer, sizeof(jscope_buffer),
+                              SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    /* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1) {
-    /* USER CODE END WHILE */
-    // jscope_cnt1++;
-    // jscope_cnt2 += 2;
-    // SEGGER_RTT_Write(1, &jscope_cnt1, sizeof(jscope_cnt1));
-    // SEGGER_RTT_Write(1, &jscope_cnt2, sizeof(jscope_cnt2));
-    /* USER CODE BEGIN 3 */
-    uint32_t now = HAL_GetTick();
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1)
+    {
+        /* USER CODE END WHILE */
 
-    if (now - led_red.last_toggle >= led_red.period_ms) {
-      HAL_GPIO_TogglePin(led_red.port, led_red.pin);
-      led_red.last_toggle = now;
-      jscope_cnt1++;
-      SEGGER_RTT_Write(1, &jscope_cnt1, sizeof(jscope_cnt1));
-      SEGGER_RTT_printf(
-          0, "LED Red Toggled!\r\n"); // SEGGER_RTT_Write(1, &jscope_red_cnt,
-                                      // sizeof(jscope_red_cnt));
+        /* USER CODE BEGIN 3 */
+        uint32_t now = HAL_GetTick();
+
+        // çº¢è‰² LED é—ªçƒæŽ§åˆ¶ï¼ˆ500ms å‘¨æœŸï¼‰
+        if (now - led_red.last_toggle >= led_red.period_ms)
+        {
+            HAL_GPIO_TogglePin(led_red.port, led_red.pin);
+            led_red.last_toggle = now;
+            SEGGER_RTT_printf(0, "LED Red Toggled!\r\n");
+        }
+
+        // è“è‰² LED é—ªçƒæŽ§åˆ¶ï¼ˆ1000ms å‘¨æœŸï¼‰
+        if (now - led_blue.last_toggle >= led_blue.period_ms)
+        {
+            HAL_GPIO_TogglePin(led_blue.port, led_blue.pin);
+            led_blue.last_toggle = now;
+            SEGGER_RTT_printf(0, "LED Blue Toggled!\r\n");
+        }
     }
-
-    if (now - led_blue.last_toggle >= led_blue.period_ms) {
-      HAL_GPIO_TogglePin(led_blue.port, led_blue.pin);
-      led_blue.last_toggle = now;
-      SEGGER_RTT_printf(0, "LED Blue Toggled!\r\n");
-    }
-  }
-  /* USER CODE END 3 */
+    /* USER CODE END 3 */
 }
 
 /**
  * @brief System Clock Configuration
  * @retval None
  */
-void SystemClock_Config(void) {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Configure the main internal regulator output voltage
-   */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-   * in the RCC_OscInitTypeDef structure.
-   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 4;
-  RCC_OscInitStruct.PLL.PLLN = 168;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-    Error_Handler();
-  }
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 4;
+    RCC_OscInitStruct.PLL.PLLN = 168;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 4;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-   */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
-                                RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
-    Error_Handler();
-  }
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+    {
+        Error_Handler();
+    }
 }
 
 /* USER CODE BEGIN 4 */
-/**
- * @brief  ·Ç×èÈûÊ½ LED ÉÁË¸´¦Àí
- *         ÐèÔÚ while(1) ÖÐ³ÖÐøµ÷ÓÃ£¬ÄÚ²¿Í¨¹ý HAL_GetTick()
- * Ê±¼ä²îÅÐ¶ÏÊÇ·ñµ½´ï·­×ªÊ±»ú
- * @param  led: Ö¸Ïò LED_Blink_t ½á¹¹ÌåµÄÖ¸Õë
- * @retval None
- */
-static void LED_AsyncBlink(LED_Blink_t *led) {
-  uint32_t now = HAL_GetTick();
-  if (now - led->last_toggle >= led->period_ms) {
-    HAL_GPIO_TogglePin(led->port, led->pin);
-    led->last_toggle = now;
-  }
-}
 /* USER CODE END 4 */
 
 /**
  * @brief  This function is executed in case of error occurrence.
  * @retval None
  */
-void Error_Handler(void) {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1) {
-  }
-  /* USER CODE END Error_Handler_Debug */
+void Error_Handler(void)
+{
+    /* USER CODE BEGIN Error_Handler_Debug */
+    __disable_irq();
+    while (1)
+    {
+    }
+    /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
 /**
@@ -220,11 +237,9 @@ void Error_Handler(void) {
  * @param  line: assert_param error line source number
  * @retval None
  */
-void assert_failed(uint8_t *file, uint32_t line) {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line
-     number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
-     line) */
-  /* USER CODE END 6 */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    /* USER CODE BEGIN 6 */
+    /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

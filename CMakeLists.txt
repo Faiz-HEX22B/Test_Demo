@@ -47,6 +47,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     ${CMAKE_SOURCE_DIR}/SEGGER_RTT/Src/SEGGER_RTT.c
     ${CMAKE_SOURCE_DIR}/SEGGER_RTT/Src/SEGGER_RTT_printf.c
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/DSP/Source/FastMathFunctions/arm_sin_f32.c
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/DSP/Source/FastMathFunctions/arm_cos_f32.c
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/DSP/Source/CommonTables/CommonTables.c
 )
 
 
@@ -54,7 +57,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
-     ${CMAKE_SOURCE_DIR}/SEGGER_RTT/Inc  # 这里换成你实际存放的（相对）路径
+     ${CMAKE_SOURCE_DIR}/SEGGER_RTT/Inc
+     ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/DSP/Include
 )
 
 # Add project symbols (macros)
